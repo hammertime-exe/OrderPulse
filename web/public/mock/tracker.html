@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>OrderSheet — Sweet Crumbs tracker</title><link rel="stylesheet" href="mock.css"></head>
+<body>
+  <header style="background:#16a34a"><b>OrderSheet</b><span>Sweet Crumbs · orders &amp; stock</span></header>
+  <main>
+    <h2>Orders</h2>
+    <table data-testid="orders"><thead><tr><th>ID</th><th>Customer</th><th>Product</th><th>Qty</th><th>Customisation</th><th>Pickup</th><th>Status</th></tr></thead><tbody></tbody></table>
+    <h2>Stock</h2>
+    <table data-testid="stock"><thead><tr><th>Item</th><th>On hand</th><th>Unit</th></tr></thead><tbody></tbody></table>
+    <h2>Recipes (per unit)</h2>
+    <table data-testid="recipes"><thead><tr><th>Product</th><th>Unit</th><th>Prep hours</th><th>Materials per unit</th></tr></thead><tbody></tbody></table>
+    <p class="demo-note">Demo order tracker with synthetic data. Part of the OrderPulse controlled test workspace.</p>
+  </main>
+  <script type="module">
+    import { state, esc, when } from './mock.js';
+    const s = await state();
+    const rows = (sel, html) => (document.querySelector(`[data-testid=${sel}] tbody`).innerHTML = html);
+    rows('orders', s.orders.map((o) => `
+      <tr data-id="${esc(o.id)}" data-product="${esc(o.product)}" data-quantity="${o.quantity}" data-pickup="${esc(o.pickupAt)}" data-status="${esc(o.status)}">
+        <td>${esc(o.id)}</td><td>${esc(o.customer)}</td><td>${esc(o.product)}</td><td>${o.quantity}</td><td>${esc(o.customization)}</td><td>${when(o.pickupAt)}</td><td>${esc(o.status)}</td>
+      </tr>`).join(''));
+    rows('stock', s.stock.map((x) => `<tr data-item="${esc(x.item)}" data-on-hand="${x.onHand}"><td>${esc(x.item)}</td><td>${x.onHand}</td><td>${esc(x.unit)}</td></tr>`).join(''));
+    rows('recipes', Object.entries(s.recipes).map(([name, r]) => `
+      <tr data-product="${esc(name)}" data-recipe='${esc(JSON.stringify(r))}'>
+        <td>${esc(name)}</td><td>${esc(r.unit)}</td><td>${r.prepHours}</td><td>${Object.entries(r.materials).map(([k, v]) => `${esc(k)} ${v}`).join(', ')}</td>
+      </tr>`).join(''));
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>KitchenCal — production calendar</title><link rel="stylesheet" href="mock.css"></head>
+<body>
+  <header style="background:#9333ea"><b>KitchenCal</b><span>Sweet Crumbs production calendar</span></header>
+  <main>
+    <div id="days"></div>
+    <p class="demo-note">Demo calendar with synthetic events. Part of the OrderPulse controlled test workspace.</p>
+  </main>
+  <script type="module">
+    import { state, esc, time, day } from './mock.js';
+    const s = await state();
+    const colors = { prep: '#f3e8ff', pickup: '#dbeafe', personal: '#fee2e2', reminder: '#fef9c3' };
+    const byDay = Object.groupBy([...s.calendar].sort((a, b) => a.start.localeCompare(b.start)), (c) => day(c.start));
+    document.getElementById('days').innerHTML = Object.entries(byDay).map(([d, slots]) => `
+      <h3>${esc(d)}</h3>
+      ${slots.map((c) => `
+        <div class="card" style="background:${colors[c.kind]}" data-testid="slot" data-id="${esc(c.id)}" data-kind="${esc(c.kind)}" data-start="${esc(c.start)}" data-end="${esc(c.end)}">
+          <b>${time(c.start)}–${time(c.end)}</b> ${esc(c.title)} <span class="tag">${esc(c.kind)}</span>
+        </div>`).join('')}`).join('');
+  </script>
+</body>
+</html>
