@@ -33,3 +33,9 @@ test('redirects: worst of start and landing page wins, and the redirect is discl
   assert.equal(r.hostname, 'udyamregistration-gov.example');
   assert.match(r.reasons[0], /Redirected from udyamregistration.gov.in to udyamregistration-gov.example/);
 });
+
+test('same-host redirect: reasons explain the worse label', () => {
+  const r = gate0('http://udyamregistration.gov.in/', 'https://udyamregistration.gov.in/');
+  assert.equal(r.label, 'Unable to verify');
+  assert.match(r.reasons[0], /not served over HTTPS/);
+});

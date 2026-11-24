@@ -46,6 +46,6 @@ export function gate0(url: string, finalUrl: string = url): Gate0Result {
   const a = checkOne(url);
   const b = finalUrl === url ? a : checkOne(finalUrl);
   const worst = RANK[b.label] >= RANK[a.label] ? b : a;
-  const reasons = finalUrl !== url && a.host !== b.host ? [`Redirected from ${a.host || url} to ${b.host || finalUrl}`, ...a.reasons, ...b.reasons] : b.reasons;
+  const reasons = finalUrl !== url && a.host !== b.host ? [`Redirected from ${a.host || url} to ${b.host || finalUrl}`, ...a.reasons, ...b.reasons] : worst.reasons;
   return { url, finalUrl, hostname: b.host, label: worst.label, reasons: [...new Set(reasons)] };
 }
