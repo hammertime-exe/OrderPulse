@@ -36,7 +36,8 @@ export async function extractJson<T>(instructions: string, text: string): Promis
       });
       if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
       const json = (await res.json()) as { choices: { message: { content: string } }[] };
-      const out = JSON.parse(json.choices[0].message.content) as T;
+      const content = json.choices[0].message.content; // some providers wrap the JSON in ```json fences
+      const out = JSON.parse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1)) as T;
       cache[hash] = out;
       try { writeFileSync('seed/ai-cache.json', JSON.stringify(cache, null, 2)); } catch { /* read-only on Lambda */ }
       return out;
