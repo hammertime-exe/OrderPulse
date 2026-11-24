@@ -1,20 +1,10 @@
 import type { Clash, ClashReport, OrderRequest, State, Window } from './types.ts';
+import { H, dayOf, fmt, hhmm, hourOf, iso } from './time.ts';
 
-const H = 3_600_000;
-const IST = 5.5 * H; // shortcut: one fixed time zone (IST), upgrade if sellers outside India
 const OPEN = 8; // kitchen hours, IST
 const CLOSE = 21;
 const HANDOVER = 0.25 * H; // pickup blocks 15 minutes
 const SEARCH_HOURS = 72; // how far after the requested pickup we look for a free slot
-
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const ist = (ms: number) => new Date(ms + IST); // read with getUTC* to get IST wall-clock values
-export const iso = (ms: number) => ist(ms).toISOString().slice(0, 19) + '+05:30';
-const hhmm = (ms: number) => ist(ms).toISOString().slice(11, 16);
-export const fmt = (ms: number) => { const d = ist(ms); return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${hhmm(ms)}`; };
-const hourOf = (ms: number) => (ms + IST) % (24 * H) / H;
-const dayOf = (ms: number) => Math.floor((ms + IST) / (24 * H));
 
 /** Rule-based clash check: missing fields, kitchen hours, calendar overlap, stock shortfall. Same input, same answer. */
 export function checkOrder(req: OrderRequest, state: Pick<State, 'orders' | 'stock' | 'recipes' | 'calendar'>): ClashReport {
