@@ -9,7 +9,9 @@
     "browsers": "playwright-core install chromium",
     "test": "node --test",
     "typecheck": "tsc",
-    "build": "vite build"
+    "build": "vite build",
+    "build:lambda": "node infra/build.ts",
+    "deploy": "sam deploy --guided --template infra/template.yaml"
   },
   "dependencies": {
     "react": "^19.3.1",
