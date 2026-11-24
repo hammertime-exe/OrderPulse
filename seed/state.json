@@ -1,0 +1,98 @@
+{
+  "version": 0,
+  "inbox": [
+    {
+      "id": "M-201",
+      "from": "Priya Nair <priya.nair@example.com>",
+      "subject": "Birthday cake for Saturday",
+      "body": "Hi! I'd like a 2 kg chocolate truffle cake for my daughter's 10th birthday. Can you write \"Happy 10th Birthday Aanya\" on it with purple flowers? We'd like to pick it up this Saturday (28 Nov) at 4 pm. No nuts please, she is allergic. Thanks, Priya",
+      "receivedAt": "2026-11-24T09:12:00+05:30",
+      "read": false
+    },
+    {
+      "id": "M-198",
+      "from": "Rahul Mehta <rahul.m@example.com>",
+      "subject": "Re: Anniversary cake",
+      "body": "Confirmed, 1.5 kg chocolate truffle, pickup Saturday 3:30 pm. See you then!",
+      "receivedAt": "2026-11-21T18:40:00+05:30",
+      "read": true
+    },
+    {
+      "id": "M-190",
+      "from": "Sneha Rao <sneha.rao@example.com>",
+      "subject": "Do you deliver?",
+      "body": "Hello, do you deliver to Malleshwaram? Just asking for next month.",
+      "receivedAt": "2026-11-20T11:05:00+05:30",
+      "read": true
+    }
+  ],
+  "sent": [],
+  "orders": [
+    {
+      "id": "O-101",
+      "customer": "Rahul Mehta",
+      "product": "chocolate truffle cake",
+      "quantity": 1.5,
+      "customization": "\"Happy Anniversary\" in gold",
+      "pickupAt": "2026-11-28T15:30:00+05:30",
+      "status": "confirmed",
+      "sourceMessageId": "M-198"
+    },
+    {
+      "id": "O-099",
+      "customer": "Anita Shetty",
+      "product": "vanilla sponge cake",
+      "quantity": 1,
+      "customization": "plain",
+      "pickupAt": "2026-11-22T12:00:00+05:30",
+      "status": "delivered"
+    }
+  ],
+  "stock": [
+    { "item": "dark chocolate", "unit": "g", "onHand": 1200 },
+    { "item": "whipping cream", "unit": "ml", "onHand": 1000 },
+    { "item": "flour", "unit": "g", "onHand": 3000 },
+    { "item": "eggs", "unit": "pcs", "onHand": 24 },
+    { "item": "sugar", "unit": "g", "onHand": 2000 }
+  ],
+  "recipes": {
+    "chocolate truffle cake": {
+      "unit": "kg",
+      "prepHours": 4,
+      "materials": { "dark chocolate": 300, "whipping cream": 400, "flour": 250, "eggs": 4, "sugar": 200 }
+    },
+    "vanilla sponge cake": {
+      "unit": "kg",
+      "prepHours": 3,
+      "materials": { "whipping cream": 300, "flour": 300, "eggs": 5, "sugar": 250 }
+    }
+  },
+  "calendar": [
+    {
+      "id": "C-301",
+      "title": "Prep: O-101 anniversary cake",
+      "start": "2026-11-28T11:00:00+05:30",
+      "end": "2026-11-28T15:00:00+05:30",
+      "kind": "prep",
+      "orderId": "O-101"
+    },
+    {
+      "id": "C-302",
+      "title": "Pickup: O-101 Rahul",
+      "start": "2026-11-28T15:30:00+05:30",
+      "end": "2026-11-28T15:45:00+05:30",
+      "kind": "pickup",
+      "orderId": "O-101"
+    },
+    {
+      "id": "C-303",
+      "title": "Kids' school event",
+      "start": "2026-11-27T16:00:00+05:30",
+      "end": "2026-11-27T19:00:00+05:30",
+      "kind": "personal"
+    }
+  ],
+  "proposals": [],
+  "audit": [],
+  "runs": []
+}
