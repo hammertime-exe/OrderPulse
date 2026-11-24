@@ -15,7 +15,7 @@
     document.getElementById('days').innerHTML = Object.entries(byDay).map(([d, slots]) => `
       <h3>${esc(d)}</h3>
       ${slots.map((c) => `
-        <div class="card" style="background:${colors[c.kind]}" data-testid="slot" data-id="${esc(c.id)}" data-kind="${esc(c.kind)}" data-start="${esc(c.start)}" data-end="${esc(c.end)}">
+        <div class="card" style="background:${colors[c.kind]}" data-testid="slot" data-id="${esc(c.id)}" data-kind="${esc(c.kind)}" data-title="${esc(c.title)}" data-start="${esc(c.start)}" data-end="${esc(c.end)}">
           <b>${time(c.start)}–${time(c.end)}</b> ${esc(c.title)} <span class="tag">${esc(c.kind)}</span>
         </div>`).join('')}`).join('');
   </script>

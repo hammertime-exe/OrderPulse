@@ -1,1 +1,12 @@
-{}
+{
+  "e46d22129e8b0293": {
+    "customer": "Priya Nair",
+    "product": "chocolate truffle cake",
+    "customization": "\"Happy 10th Birthday Aanya\" with purple flowers",
+    "quantity": 2,
+    "pickupAt": "2026-11-28T16:00:00+05:30",
+    "constraints": [
+      "No nuts (allergy)"
+    ]
+  }
+}
