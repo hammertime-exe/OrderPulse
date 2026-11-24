@@ -117,6 +117,8 @@ export async function run(runId: string) {
         timeClash ? 'Offers the nearest free time instead of promising the requested one' : 'Confirms the requested time');
     }
 
+    await step(runId, 'PREPARE', `Prepared ${proposals.length} changes (not written)`, { detail: proposals.map((p) => `${p.payload.kind}: ${p.reason}`).join('\n') });
+
     // APPROVE: hand over to the seller
     await updateState((s) => {
       s.proposals.push(...proposals);
