@@ -66,10 +66,11 @@ export async function run(runId: string, url: string) {
     const link = await page.$$eval('a[href]', (as) => as.map((a) => ({ href: (a as HTMLAnchorElement).href, text: a.textContent ?? '' })));
     const next = link.find((l) => /important|eligib|instruction|document|faq/i.test(l.text) && !/\.pdf$|#$/i.test(l.href) && new URL(l.href).hostname === new URL(page.url()).hostname);
     if (next) {
-      await page.goto(next.href, { timeout: 30_000 }).catch(() => null);
+      const loaded = await page.goto(next.href, { timeout: 30_000 }).then(() => true, () => false);
       const g = gate0(next.href, page.url());
-      gates.push(g);
-      if (g.label === 'Official source confirmed') {
+      if (!loaded) await step(runId, 'CHECK', `Linked page "${next.text.trim()}" did not load; skipped`, { url: next.href });
+      else gates.push(g);
+      if (loaded && g.label === 'Official source confirmed') {
         pages.push({ url: page.url(), text: await page.innerText('body') });
         await step(runId, 'CHECK', `Opened linked page "${next.text.trim()}"`, { url: page.url() });
       }
@@ -85,17 +86,19 @@ export async function run(runId: string, url: string) {
         if (onPage(it.quote)) items.push({ id: newId('I'), text: it.text, quote: it.quote, sourceUrl: p.url, done: false });
         else dropped++;
       }
-      if (!deadline && ai.deadline?.date && onPage(ai.deadline.quote)) deadline = { date: ai.deadline.date, quote: ai.deadline.quote, url: p.url };
+      if (!deadline && ai.deadline?.date && !Number.isNaN(Date.parse(ai.deadline.date)) && onPage(ai.deadline.quote)) deadline = { date: ai.deadline.date, quote: ai.deadline.quote, url: p.url };
     }
+    const passed = deadline && Date.parse(deadline.date) + 24 * H < Date.now() ? deadline : null; // date-only deadlines count through that day
+    if (passed) deadline = null; // no "Deadline soon" reminder for a deadline that is over
     await step(runId, 'REASON', `Built checklist: ${items.length} items, each quoted from the official page`, {
-      detail: [...items.map((i) => `• ${i.text}`), dropped ? `Dropped ${dropped} item(s) whose quote was not found on the page` : '', deadline ? `Deadline on page: "${deadline.quote}"` : 'No deadline stated on the page; none invented'].filter(Boolean).join('\n'),
+      detail: [...items.map((i) => `• ${i.text}`), dropped ? `Dropped ${dropped} item(s) whose quote was not found on the page` : '', deadline ? `Deadline on page: "${deadline.quote}"` : passed ? `Deadline on page has already passed: "${passed.quote}"` : 'No deadline stated on the page; none invented'].filter(Boolean).join('\n'),
     });
 
     // PREPARE: checklist + one calendar reminder, both waiting for approval
     const proposals: Proposal[] = [];
     const propose = (payload: Proposal['payload'], reason: string) => proposals.push({ id: newId('P'), runId, status: 'pending_approval', payload, reason, createdAt: now() });
     if (items.length) propose({ kind: 'checklist', title: `${landed.hostname} checklist`, items }, 'Every item quotes the official page it came from');
-    const at = deadline ? Date.parse(deadline.date) - 3 * 24 * H : Math.ceil(Date.now() / (24 * H)) * 24 * H + 4.5 * H; // 3 days before deadline, else tomorrow 10:00 IST
+    const at = deadline ? Math.max(Date.parse(deadline.date) - 3 * 24 * H, Date.now()) : Math.ceil(Date.now() / (24 * H)) * 24 * H + 4.5 * H; // 3 days before deadline, else tomorrow 10:00 IST
     if (items.length || deadline)
       propose({ kind: 'calendar_event', slot: { id: newId('C'), title: deadline ? `Deadline soon: ${landed.hostname}` : `Gather documents for ${landed.hostname}`, start: iso(at), end: iso(at + H / 2), kind: 'reminder' } },
         deadline ? `3 days before the deadline quoted on ${deadline.url}` : 'Reminder for the document tasks (no deadline on the page)');
