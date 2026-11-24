@@ -106,7 +106,8 @@ export type Run = {
   id: string;
   kind: 'order' | 'aidscout';
   status: 'running' | 'awaiting_approval' | 'done' | 'failed';
-  input?: string; // aidscout: the URL or question
+  input?: string; // aidscout: the URL or question; order: the source message id
+  startedAt?: string;
   steps: AgentStep[];
   proposalIds: string[];
   report?: ClashReport;

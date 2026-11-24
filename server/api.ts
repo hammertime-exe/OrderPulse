@@ -16,9 +16,20 @@ let runAgent = async (run: Run) => {
 };
 export const setRunAgent = (fn: typeof runAgent) => { runAgent = fn; };
 
+// The agent Lambda stops at 120 s; a run silent for 3 minutes died without reaching its catch (timeout or restart).
+// Judged on the server clock: shown as failed on read, saved as failed when the next run starts.
+const expire = (s: State) => {
+  for (const r of s.runs)
+    if (r.status === 'running' && !(Date.now() - Date.parse(r.steps.at(-1)?.at ?? r.startedAt ?? '') < 180_000)) {
+      r.status = 'failed';
+      r.error = 'The agent stopped responding (timed out or restarted)';
+    }
+  return s;
+};
+
 async function startRun(kind: Run['kind'], input?: string): Promise<string> {
-  const run: Run = { id: newId('R'), kind, status: 'running', input, steps: [], proposalIds: [] };
-  await updateState((s) => { s.runs.unshift(run); });
+  const run: Run = { id: newId('R'), kind, status: 'running', input, startedAt: now(), steps: [], proposalIds: [] };
+  await updateState((s) => { expire(s); s.runs.unshift(run); });
   runAgent(run).catch((e: Error) =>
     updateState((s) => {
       const r = s.runs.find((x) => x.id === run.id);
@@ -33,7 +44,7 @@ export async function handle(method: string, path: string, body: any): Promise<R
   const route = `${method} ${path}`;
   switch (route) {
     case 'GET /api/state':
-      return { status: 200, body: await readState() };
+      return { status: 200, body: expire(await readState()) };
     case 'POST /api/runs':
       if (body?.kind === 'order') return { status: 202, body: { runId: await startRun('order') } };
       if (body?.kind === 'aidscout' && typeof body.input === 'string' && body.input.length < 2048)
