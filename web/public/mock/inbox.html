@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>PulseMail — Inbox</title><link rel="stylesheet" href="mock.css"></head>
+<body>
+  <header style="background:#2563eb"><b>PulseMail</b><span>orders@sweetcrumbs.example</span></header>
+  <main>
+    <h2 id="title">Inbox</h2>
+    <div id="list"></div>
+    <p class="demo-note">Demo inbox with synthetic messages. Part of the OrderPulse controlled test workspace.</p>
+  </main>
+  <script type="module">
+    import { state, esc, when } from './mock.js';
+    const s = await state();
+    const id = new URLSearchParams(location.search).get('id');
+    const list = document.getElementById('list');
+    if (id) {
+      const m = s.inbox.find((x) => x.id === id);
+      document.getElementById('title').textContent = m ? m.subject : 'Message not found';
+      if (m) list.innerHTML = `
+        <div class="card" data-testid="message" data-id="${esc(m.id)}">
+          <div class="muted">From <span data-testid="from">${esc(m.from)}</span> · <span data-testid="received" data-iso="${esc(m.receivedAt)}">${when(m.receivedAt)}</span></div>
+          <p data-testid="body">${esc(m.body)}</p>
+        </div>
+        <a href="inbox.html">← Back to inbox</a>`;
+    } else {
+      list.innerHTML = [...s.inbox].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)).map((m) => `
+        <a class="card" style="display:block;text-decoration:none" href="inbox.html?id=${esc(m.id)}" data-testid="row" data-id="${esc(m.id)}" data-unread="${!m.read}">
+          <span class="${m.read ? '' : 'unread'}">${esc(m.subject)}</span> ${m.read ? '' : '<span class="tag new">new</span>'}
+          <div class="muted">${esc(m.from)} · ${when(m.receivedAt)}</div>
+        </a>`).join('');
+      if (s.sent.length) list.innerHTML += `<h3>Sent</h3>` + s.sent.map((m) => `
+        <div class="card" data-testid="sent"><b>${esc(m.subject)}</b><div class="muted">To ${esc(m.to)} · ${when(m.at)}</div><p style="white-space:pre-wrap">${esc(m.body)}</p></div>`).join('');
+    }
+  </script>
+</body>
+</html>
