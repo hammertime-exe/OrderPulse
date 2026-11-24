@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: OrderPulse - two Lambdas behind Function URLs + one provisioned DynamoDB table (AWS always-free pieces only)
+
+Parameters:
+  GroqApiKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+  GeminiApiKey:
+    Type: String
+    NoEcho: true
+    Default: ''
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures: [x86_64] # @sparticuz/chromium ships an x86_64 build
+    Environment:
+      Variables:
+        STATE_TABLE: !Ref StateTable
+
+Resources:
+  # Provisioned (not on-demand) so it stays inside the always-free 25 RCU / 25 WCU.
+  StateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions: [{ AttributeName: pk, AttributeType: S }]
+      KeySchema: [{ AttributeName: pk, KeyType: HASH }]
+      BillingMode: PROVISIONED
+      ProvisionedThroughput: { ReadCapacityUnits: 10, WriteCapacityUnits: 15 }
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/lambda/api
+      Handler: index.api
+      MemorySize: 256
+      Timeout: 15
+      Environment:
+        Variables:
+          AGENT_FUNCTION: !Sub '${AWS::StackName}-agent'
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref StateTable }
+        - LambdaInvokePolicy: { FunctionName: !Sub '${AWS::StackName}-agent' }
+      FunctionUrlConfig:
+        AuthType: NONE # shortcut: public demo URL, anyone with the link can approve; add auth before real seller data
+
+  AgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-agent' # fixed name breaks the Api <-> Agent reference cycle
+      CodeUri: ../dist/lambda/agent
+      Handler: index.agent
+      MemorySize: 2048
+      Timeout: 120
+      EphemeralStorage: { Size: 1024 }
+      Environment:
+        Variables:
+          APP_URL: !GetAtt ApiFunctionUrl.FunctionUrl
+          GROQ_API_KEY: !Ref GroqApiKey
+          GEMINI_API_KEY: !Ref GeminiApiKey
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref StateTable }
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0 # a failed run is marked failed in state; never replay browser actions
+
+Outputs:
+  AppUrl:
+    Description: Dashboard, mock sites and API
+    Value: !GetAtt ApiFunctionUrl.FunctionUrl
