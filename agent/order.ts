@@ -1,5 +1,5 @@
 import type { CalendarSlot, Order, OrderRequest, Proposal, Recipe, StockItem } from '../shared/types.ts';
-import { checkOrder } from '../shared/clash.ts';
+import { checkOrder, statesQuantity } from '../shared/clash.ts';
 import { H, fmt, iso } from '../shared/time.ts';
 import { newId, now, updateState } from '../server/store.ts';
 import { extractJson } from './ai.ts';
@@ -64,7 +64,8 @@ export async function run(runId: string) {
     const ai = await extractJson<Omit<OrderRequest, 'sourceMessageId'>>(instructions(Object.keys(recipes), msg.receivedAt), msg.body);
     const req: OrderRequest = { ...ai, sourceMessageId: msg.id, constraints: ai.constraints ?? [] };
     const notes: string[] = [];
-    if (req.quantity != null && !msg.body.includes(String(req.quantity))) { notes.push(`quantity ${req.quantity} not found in the message text; cleared`); req.quantity = null; }
+    if (req.pickupAt && !/(Z|[+-]\d\d:?\d\d)$/i.test(req.pickupAt)) req.pickupAt += '+05:30'; // AI omitted the offset; the server may not be in IST
+    if (req.quantity != null && !statesQuantity(msg.body, req.quantity)) { notes.push(`quantity ${req.quantity} not found in the message text; cleared`); req.quantity = null; }
     if (req.pickupAt && Date.parse(req.pickupAt) < Date.parse(msg.receivedAt)) { notes.push(`pickup ${req.pickupAt} is before the message was sent; cleared`); req.pickupAt = null; }
     if (req.product && !recipes[req.product]) { notes.push(`"${req.product}" is not on the menu`); }
     const links = msg.body.match(/https?:\/\/\S+/g) ?? [];
@@ -122,8 +123,10 @@ export async function run(runId: string) {
     // APPROVE: hand over to the seller
     await updateState((s) => {
       s.proposals.push(...proposals);
+      const m = s.inbox.find((x) => x.id === msg.id);
+      if (m) m.read = true; // handled: the next check moves on to newer messages instead of re-staging this one
       const r = s.runs.find((x) => x.id === runId);
-      if (r) { r.status = 'awaiting_approval'; r.report = report; r.proposalIds = proposals.map((p) => p.id); }
+      if (r) { r.status = 'awaiting_approval'; r.input = msg.id; r.report = report; r.proposalIds = proposals.map((p) => p.id); }
       s.audit.unshift({ at: now(), actor: 'agent', action: 'staged proposals', detail: `${proposals.length} changes for message ${msg.id}, waiting for approval`, source: `message ${msg.id}` });
     });
     await step(runId, 'APPROVE', `Staged ${proposals.length} changes; waiting for your approval`);
