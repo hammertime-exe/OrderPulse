@@ -20,6 +20,17 @@ npm test               # clash engine + Gate 0 tests
 npm run reset          # back to the seeded demo data
 ```
 
+## Deploy to AWS (always-free pieces only)
+
+Needs the AWS CLI and SAM CLI, configured for your account.
+
+```sh
+npm run build:lambda   # vite build + esbuild bundles into dist/lambda/{api,agent}
+npm run deploy         # sam deploy --guided; enter your Groq key when asked
+```
+
+The stack is one provisioned DynamoDB table (10 RCU / 15 WCU, inside the 25/25 free tier) and two Lambdas with Function URLs (no API Gateway). `sam deploy` uploads the code through an S3 bucket it creates, which is the one non-always-free piece (about 70 MB, mostly Chromium; pennies on the new-account credits). The Function URL is public: anyone with the link can approve demo changes.
+
 ## Layout
 
 | Folder | What |

@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
+import cached from '../seed/ai-cache.json' with { type: 'json' };
 
 // The AI only turns messy text into JSON fields. Rules decide everything else.
 // Replies are cached by input hash so a demo can replay without a key or network.
-const CACHE = new URL('../seed/ai-cache.json', import.meta.url);
+const cache: Record<string, unknown> = { ...cached };
 
 const providers = () => [
   { name: 'groq', url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY, model: process.env.GROQ_MODEL ?? 'llama-3.1-8b-instant' },
@@ -12,7 +13,6 @@ const providers = () => [
 
 export async function extractJson<T>(instructions: string, text: string): Promise<T> {
   const hash = createHash('sha256').update(instructions + '\n---\n' + text).digest('hex').slice(0, 16);
-  const cache: Record<string, unknown> = existsSync(CACHE) ? JSON.parse(readFileSync(CACHE, 'utf8')) : {};
   if (hash in cache) return cache[hash] as T;
 
   const errors: string[] = [];
@@ -36,7 +36,7 @@ export async function extractJson<T>(instructions: string, text: string): Promis
       const json = (await res.json()) as { choices: { message: { content: string } }[] };
       const out = JSON.parse(json.choices[0].message.content) as T;
       cache[hash] = out;
-      try { writeFileSync(CACHE, JSON.stringify(cache, null, 2)); } catch { /* read-only on Lambda */ }
+      try { writeFileSync('seed/ai-cache.json', JSON.stringify(cache, null, 2)); } catch { /* read-only on Lambda */ }
       return out;
     } catch (e) {
       errors.push(`${p.name}: ${(e as Error).message}`);
