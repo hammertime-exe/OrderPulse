@@ -1,10 +1,13 @@
 import type { Proposal, ProposalPayload, State } from '../shared/types.ts';
+import { fmt } from '../shared/time.ts';
 import { now } from './store.ts';
+
+const t = (iso: string) => fmt(Date.parse(iso));
 
 export const describe = (p: ProposalPayload): string => {
   switch (p.kind) {
-    case 'sheet_row': return `Order ${p.order.id}: ${p.order.quantity} × ${p.order.product} for ${p.order.customer}, pickup ${p.order.pickupAt}`;
-    case 'calendar_event': return `Calendar: "${p.slot.title}" ${p.slot.start} → ${p.slot.end}`;
+    case 'sheet_row': return `Order ${p.order.id}: ${p.order.quantity} × ${p.order.product} for ${p.order.customer}, pickup ${t(p.order.pickupAt)}`;
+    case 'calendar_event': return `Calendar: "${p.slot.title}" ${t(p.slot.start)} → ${t(p.slot.end)}`;
     case 'customer_reply': return `Reply to ${p.to}: "${p.subject}"`;
     case 'checklist': return `Checklist "${p.title}" (${p.items.length} items)`;
   }
@@ -52,7 +55,9 @@ function decide(s: State, ids: string[], act: (p: Proposal) => Result): Result[]
     // Idempotent: a proposal is acted on once; repeats and double-clicks are no-ops.
     if (p.status !== 'pending_approval') return { id, ok: false, status: p.status, error: `already ${p.status}` };
     touched.push(p);
-    return act(p);
+    const r = act(p);
+    s.runs.find((x) => x.id === p.runId)?.steps.push({ at: now(), phase: 'EXECUTE', action: `${p.status}: ${describe(p.payload)}`, detail: r.error });
+    return r;
   });
   settleRuns(s, touched);
   return results;
