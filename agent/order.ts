@@ -56,7 +56,7 @@ export async function run(runId: string) {
     await page.waitForSelector('[data-testid=slot]');
     const calendar: CalendarSlot[] = await page.$$eval('[data-testid=slot]', (els) => els.map((el) => {
       const d = (el as HTMLElement).dataset;
-      return { id: d.id!, kind: d.kind as CalendarSlot['kind'], start: d.start!, end: d.end!, title: el.textContent!.replace(/\s+/g, ' ').trim() };
+      return { id: d.id!, kind: d.kind as CalendarSlot['kind'], start: d.start!, end: d.end!, title: d.title! };
     }));
     await step(runId, 'CHECK', `Read production calendar: ${calendar.length} events`, { url: page.url() });
 
