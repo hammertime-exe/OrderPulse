@@ -27,7 +27,7 @@ export type Order = {
   quantity: number;
   customization: string;
   pickupAt: string;
-  status: 'confirmed' | 'delivered';
+  status: "confirmed" | "delivered";
   sourceMessageId?: string;
 };
 
@@ -44,12 +44,12 @@ export type CalendarSlot = {
   title: string;
   start: string;
   end: string;
-  kind: 'prep' | 'pickup' | 'personal' | 'reminder';
+  kind: "prep" | "pickup" | "personal" | "reminder";
   orderId?: string;
 };
 
 export type Clash = {
-  kind: 'calendar' | 'stock' | 'hours' | 'missing';
+  kind: "calendar" | "stock" | "hours" | "missing";
   message: string;
   evidence?: string; // id of the slot/order/stock item or a source URL
 };
@@ -62,7 +62,8 @@ export type ClashReport = {
   alternative: { pickupAt: string; prep: Window } | null; // nearest pickup with a free prep window
 };
 
-export type Gate0Label = 'Official source confirmed' | 'Unable to verify' | 'Potential lookalike';
+export type Gate0Label =
+  "Official source confirmed" | "Unable to verify" | "Potential lookalike";
 
 export type Gate0Result = {
   url: string;
@@ -72,52 +73,85 @@ export type Gate0Result = {
   reasons: string[];
 };
 
-export type ChecklistItem = { id: string; text: string; quote: string; sourceUrl: string; done: boolean };
+export type ChecklistItem = {
+  id: string;
+  text: string;
+  quote: string;
+  sourceUrl: string;
+  done: boolean;
+};
 
 export type ProposalPayload =
-  | { kind: 'sheet_row'; order: Order }
-  | { kind: 'calendar_event'; slot: CalendarSlot }
-  | { kind: 'customer_reply'; to: string; subject: string; body: string }
-  | { kind: 'checklist'; title: string; items: ChecklistItem[] };
+  | { kind: "sheet_row"; order: Order; previousOrder?: Order }
+  | { kind: "calendar_event"; slot: CalendarSlot }
+  | { kind: "customer_reply"; to: string; subject: string; body: string }
+  | { kind: "checklist"; title: string; items: ChecklistItem[] };
 
 export type Proposal = {
   id: string;
   runId: string;
-  status: 'pending_approval' | 'approved' | 'rejected' | 'executed' | 'failed';
+  status: "pending_approval" | "approved" | "rejected" | "executed" | "failed";
   payload: ProposalPayload;
   reason: string; // why the agent proposes this, shown in the approval desk
   createdAt: string;
+  reviewRequired?: boolean;
 };
 
 export type AuditEntry = {
   at: string;
-  actor: 'agent' | 'seller';
+  actor: "agent" | "seller";
   action: string;
   proposalId?: string;
   detail: string;
   source?: string;
 };
 
-export type Phase = 'CHECK' | 'VERIFY' | 'REASON' | 'PREPARE' | 'APPROVE' | 'EXECUTE';
+export type Phase =
+  "CHECK" | "VERIFY" | "REASON" | "PREPARE" | "APPROVE" | "EXECUTE";
 
-export type AgentStep = { at: string; phase: Phase; action: string; url?: string; detail?: string };
+export type AgentStep = {
+  at: string;
+  phase: Phase;
+  action: string;
+  url?: string;
+  detail?: string;
+};
 
 export type Run = {
   id: string;
-  kind: 'order' | 'aidscout';
-  status: 'running' | 'awaiting_approval' | 'done' | 'failed';
+  kind: "order" | "aidscout";
+  status: "running" | "awaiting_approval" | "done" | "failed";
   input?: string; // aidscout: the URL or question; order: the source message id
   startedAt?: string;
+  manual?: boolean;
+  request?: OrderRequest;
   steps: AgentStep[];
   proposalIds: string[];
   report?: ClashReport;
   gate0?: Gate0Result[];
   error?: string;
+  findings?: {
+    checkedAt: string;
+    deadline?: { date: string; quote: string; url: string };
+  };
+  preview?: { dataUrl: string; url: string; at: string };
 };
 
-export type SentMessage = { at: string; to: string; subject: string; body: string; proposalId: string };
+export type SentMessage = {
+  at: string;
+  to: string;
+  subject: string;
+  body: string;
+  proposalId: string;
+};
+
+export type BusinessProfile = {
+  name: string;
+  category: "baker" | "tailor" | "crafter" | "caterer" | "other";
+};
 
 export type State = {
+  business?: BusinessProfile;
   version: number;
   inbox: InboxMessage[];
   sent: SentMessage[]; // demo "sent" folder; nothing leaves the app
