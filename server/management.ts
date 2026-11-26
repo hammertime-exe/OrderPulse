@@ -1,5 +1,5 @@
 import type { Order, OrderRequest, Proposal, State } from "../shared/types.ts";
-import { checkOrder } from "../shared/clash.ts";
+import { checkOrder, materialNeed } from "../shared/clash.ts";
 import { H, iso } from "../shared/time.ts";
 import { newId, now } from "./store.ts";
 const validText = (x: unknown, max = 160): x is string =>
@@ -218,16 +218,15 @@ export function deliverOrder(s: State, body: any) {
     );
   const materials = s.recipes[order.product]?.materials;
   if (!materials) throw new Error("Product recipe is missing.");
+  const used = (name: string, amount: number) =>
+    materialNeed(amount, order.quantity, s.stock.find((x) => x.item === name)?.unit);
   for (const [name, amount] of Object.entries(materials))
-    if (
-      (s.stock.find((x) => x.item === name)?.onHand ?? 0) <
-      amount * order.quantity
-    )
+    if ((s.stock.find((x) => x.item === name)?.onHand ?? 0) < used(name, amount))
       throw new Error(
         `Record the missing ${name} stock before completing this order.`,
       );
   for (const [name, amount] of Object.entries(materials))
-    s.stock.find((x) => x.item === name)!.onHand -= amount * order.quantity;
+    s.stock.find((x) => x.item === name)!.onHand -= used(name, amount);
   order.status = "delivered";
   s.audit.unshift({
     at: now(),

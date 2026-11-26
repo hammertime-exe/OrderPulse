@@ -6,7 +6,11 @@ import type {
   Recipe,
   StockItem,
 } from "../shared/types.ts";
-import { checkOrder, statesQuantity } from "../shared/clash.ts";
+import {
+  checkOrder,
+  statesQuantity,
+  writtenPickupDate,
+} from "../shared/clash.ts";
 import { H, fmt, iso } from "../shared/time.ts";
 import { newId, now, updateState, readState } from "../server/store.ts";
 import { extractJson } from "./ai.ts";
@@ -155,6 +159,15 @@ Use null for anything not stated. Never guess.`;
     const notes: string[] = [];
     if (req.pickupAt && !/(Z|[+-]\d\d:?\d\d)$/i.test(req.pickupAt))
       req.pickupAt += "+05:30"; // AI omitted the offset; the server may not be in IST
+    if (req.pickupAt && !Number.isNaN(Date.parse(req.pickupAt))) {
+      const written = writtenPickupDate(msg.body, req.pickupAt);
+      if (written !== iso(Date.parse(req.pickupAt))) {
+        notes.push(
+          `pickup ${req.pickupAt} does not match the date written in the message; using ${written}`,
+        );
+        req.pickupAt = written;
+      }
+    }
     if (
       req.quantity != null &&
       !statesQuantity(

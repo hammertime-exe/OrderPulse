@@ -7,7 +7,7 @@ import {
 } from "./management.ts";
 import seed from "../seed/state.json" with { type: "json" };
 import type { Run, State } from "../shared/types.ts";
-import { saveWorkspace, editProposal } from "./workspace.ts";
+import { saveWorkspace, editProposal, settingsOf } from "./workspace.ts";
 import { approve, reject } from "./approval.ts";
 import { newId, now, readState, updateState } from "./store.ts";
 
@@ -61,7 +61,11 @@ async function startRun(kind: Run["kind"], input?: string): Promise<string> {
       throw new Error("An agent run is already active.");
     if (
       kind === "order" &&
-      s.proposals.some((p) => p.status === "pending_approval")
+      s.proposals.some(
+        (p) =>
+          p.status === "pending_approval" &&
+          s.runs.find((r) => r.id === p.runId)?.kind === "order",
+      )
     )
       throw new Error(
         "Resolve pending approvals before checking another order.",
@@ -96,25 +100,29 @@ export async function handle(
     case "GET /api/state":
       return { status: 200, body: expire(await readState()) };
     case "POST /api/runs":
-      if (body?.kind === "order")
-        return {
-          status: 202,
-          body: {
-            runId: await startRun(
-              "order",
-              typeof body.input === "string" ? body.input : undefined,
-            ),
-          },
-        };
-      if (
-        body?.kind === "aidscout" &&
-        typeof body.input === "string" &&
-        body.input.length < 2048
-      )
-        return {
-          status: 202,
-          body: { runId: await startRun("aidscout", body.input) },
-        };
+      try {
+        if (body?.kind === "order")
+          return {
+            status: 202,
+            body: {
+              runId: await startRun(
+                "order",
+                typeof body.input === "string" ? body.input : undefined,
+              ),
+            },
+          };
+        if (
+          body?.kind === "aidscout" &&
+          typeof body.input === "string" &&
+          body.input.length < 2048
+        )
+          return {
+            status: 202,
+            body: { runId: await startRun("aidscout", body.input) },
+          };
+      } catch (e) {
+        return { status: 400, body: { error: (e as Error).message } };
+      }
       return {
         status: 400,
         body: {
@@ -207,13 +215,13 @@ export async function handle(
     case "POST /api/workspace":
     case "POST /api/proposals/edit":
       try {
-        const version = await updateState((s) => {
+        const result = await updateState((s) => {
           expire(s);
           if (path === "/api/workspace") saveWorkspace(s, body);
           else editProposal(s, body);
-          return s.version + 1;
+          return { version: s.version + 1, settings: settingsOf(s) };
         });
-        return { status: 200, body: { ok: true, version } };
+        return { status: 200, body: { ok: true, ...result } };
       } catch (e) {
         return { status: 400, body: { error: (e as Error).message } };
       }

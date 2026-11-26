@@ -1,7 +1,7 @@
 import type { Proposal, ProposalPayload, State } from "../shared/types.ts";
 import { checkOrder } from "../shared/clash.ts";
 import { orderContext } from "./management.ts";
-import { freeStock } from "../shared/clash.ts";
+import { freeStock, materialNeed } from "../shared/clash.ts";
 import { fmt } from "../shared/time.ts";
 import { now } from "./store.ts";
 
@@ -57,8 +57,8 @@ function staleReason({ payload: p, runId }: Proposal, s: State): string | null {
     for (const [item, perUnit] of Object.entries(
       s.recipes[p.order.product]?.materials ?? {},
     )) {
-      const need = perUnit * p.order.quantity,
-        { stock, free } = freeStock(item, orderContext(s, p.previousOrder));
+      const { stock, free } = freeStock(item, orderContext(s, p.previousOrder)),
+        need = materialNeed(perUnit, p.order.quantity, stock?.unit);
       if (!flagged.includes(item) && need > free)
         return `not enough ${item} left (need ${need} ${stock?.unit ?? ""}, ${Math.max(free, 0)} free)`;
     }
@@ -94,7 +94,9 @@ function execute(p: ProposalPayload, proposalId: string, s: State) {
     case "sheet_row": {
       if (p.previousOrder) {
         s.orders[s.orders.findIndex((o) => o.id === p.order.id)] = p.order;
-        s.calendar = s.calendar.filter((c) => c.orderId !== p.order.id);
+        s.calendar = s.calendar.filter(
+          (c) => c.orderId !== p.order.id || c.kind === "reminder",
+        );
       } else s.orders.push(p.order);
       const msg = s.inbox.find((m) => m.id === p.order.sourceMessageId);
       if (msg) msg.read = true;

@@ -75,8 +75,8 @@ export function checkOrder(
   clashes.push(...timeClashes);
 
   for (const [item, perUnit] of Object.entries(recipe.materials)) {
-    const need = perUnit * req.quantity;
     const { stock, committed, free } = freeStock(item, state);
+    const need = materialNeed(perUnit, req.quantity, stock?.unit);
     if (need > free)
       clashes.push({
         kind: "stock",
@@ -98,6 +98,12 @@ export function checkOrder(
   return { clashes, prep: windowFor(pickup), alternative };
 }
 
+/** Material an order uses; items counted in pieces (eggs) round up to whole pieces. */
+export const materialNeed = (perUnit: number, quantity: number, unit = "") =>
+  /^(pcs?|pieces?)$/i.test(unit)
+    ? Math.ceil(perUnit * quantity - 1e-9)
+    : perUnit * quantity;
+
 /** Stock: what is left of an item after confirmed (not yet delivered) orders. */
 export function freeStock(
   item: string,
@@ -108,10 +114,35 @@ export function freeStock(
     .filter((o) => o.status === "confirmed")
     .reduce(
       (sum, o) =>
-        sum + (state.recipes[o.product]?.materials[item] ?? 0) * o.quantity,
+        sum +
+        materialNeed(
+          state.recipes[o.product]?.materials[item] ?? 0,
+          o.quantity,
+          stock?.unit,
+        ),
       0,
     );
   return { stock, committed, free: (stock?.onHand ?? 0) - committed };
+}
+
+const MONTHS = "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec";
+const WRITTEN_DATE = new RegExp(
+  `\\b(?:(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTHS})[a-z]*|(${MONTHS})[a-z]*\\s+(\\d{1,2})(?:st|nd|rd|th)?)\\b`,
+  "i",
+);
+
+/** If the text states a day and month ("28 Nov", "Nov 28th"), move the pickup to that IST date, keeping its time. */
+// shortcut: uses the first written date only, upgrade if messages often mention several dates
+export function writtenPickupDate(text: string, pickupAt: string): string {
+  const m = text.match(WRITTEN_DATE);
+  const ms = Date.parse(pickupAt);
+  if (!m || Number.isNaN(ms)) return pickupAt;
+  const month = String(
+    MONTHS.split("|").indexOf((m[2] ?? m[3]).toLowerCase()) + 1,
+  ).padStart(2, "0");
+  const day = (m[1] ?? m[4]).padStart(2, "0");
+  const local = iso(ms); // IST wall clock, e.g. 2026-11-27T16:00:00+05:30
+  return `${local.slice(0, 5)}${month}-${day}${local.slice(10)}`;
 }
 
 const WORDS: Record<string, number> = {

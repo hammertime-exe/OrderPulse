@@ -35,6 +35,13 @@ const date = (value: unknown): value is string =>
   /(Z|[+-]\d{2}:\d{2})$/.test(value) &&
   Number.isFinite(Date.parse(value));
 
+/** The settings Business setup edits; a save is checked against the copy the form started from. */
+export const settingsOf = (s: State) => ({
+  business: s.business,
+  stock: s.stock,
+  recipes: s.recipes,
+});
+
 /** Validate the entire settings document before changing live state. */
 
 export function saveWorkspace(s: State, body: unknown) {
@@ -42,10 +49,10 @@ export function saveWorkspace(s: State, body: unknown) {
     business?: BusinessProfile;
     stock?: StockItem[];
     recipes?: Record<string, Recipe>;
-    version?: number;
+    expected?: unknown;
   } | null;
 
-  if (input?.version !== s.version)
+  if (JSON.stringify(input?.expected) !== JSON.stringify(settingsOf(s)))
     throw new Error(
       "Workspace changed. Reload the saved settings and try again.",
     );
@@ -234,9 +241,18 @@ export function editProposal(s: State, body: unknown) {
       orderContext(s, p.payload.previousOrder),
     );
 
-    if (report.clashes.length)
+    // A shortfall the agent already flagged has its restock reminder; only new problems block the edit.
+    const flagged =
+      s.runs
+        .find((r) => r.id === p.runId)
+        ?.report?.clashes.filter((c) => c.kind === "stock")
+        .map((c) => c.evidence) ?? [];
+    const blocking = report.clashes.filter(
+      (c) => !(c.kind === "stock" && flagged.includes(c.evidence)),
+    );
+    if (blocking.length)
       throw new Error(
-        `Cannot save this order: ${report.clashes.map((c) => c.message).join(" ")}`,
+        `Cannot save this order: ${blocking.map((c) => c.message).join(" ")}`,
       );
 
     for (const item of related) {

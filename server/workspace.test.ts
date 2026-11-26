@@ -2,13 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import seed from "../seed/state.json" with { type: "json" };
 import type { State, Proposal } from "../shared/types.ts";
-import { saveWorkspace, editProposal } from "./workspace.ts";
+import { saveWorkspace, editProposal, settingsOf } from "./workspace.ts";
 import { approve } from "./approval.ts";
-import { statesQuantity } from "../shared/clash.ts";
+import { materialNeed, statesQuantity, writtenPickupDate } from "../shared/clash.ts";
 
 const state = () => structuredClone(seed as State);
 const config = (s: State) => ({
-  version: s.version,
+  expected: structuredClone(settingsOf(s)),
   business: { name: "Thread Studio", category: "tailor" },
   stock: structuredClone(s.stock),
   recipes: structuredClone(s.recipes),
@@ -105,7 +105,7 @@ test("invalid settings and stale revisions leave all settings unchanged", () => 
   assert.throws(() => saveWorkspace(s, input), /non-negative/);
   assert.deepEqual(s, before);
   assert.throws(
-    () => saveWorkspace(s, { ...config(s), version: -1 }),
+    () => saveWorkspace(s, { ...config(s), expected: {} }),
     /changed/,
   );
   assert.deepEqual(s, before);
@@ -188,4 +188,38 @@ test("quantity verification supports configured non-bakery units", () => {
   assert.equal(statesQuantity("Please make 12 pieces", 2, "piece"), false);
   assert.equal(statesQuantity("Use 3 metres", 2.5, "m"), false);
   assert.equal(statesQuantity("Order 2 kg chocolate cake", 2), true);
+});
+
+test("setup save is not blocked by unrelated writes, only by changed settings", () => {
+  const s = state(),
+    input = config(s);
+  s.version += 5; // e.g. a checklist tick or an audit entry
+  saveWorkspace(s, input);
+  assert.equal(s.business?.name, "Thread Studio");
+});
+
+test("an agent order with a flagged stock shortfall can still be edited", () => {
+  const s = staged();
+  s.stock.find((x) => x.item === "whipping cream")!.onHand = 0;
+  s.runs.find((r) => r.id === "R-edit")!.report = {
+    clashes: [{ kind: "stock", message: "short", evidence: "whipping cream" }],
+    prep: null,
+    alternative: null,
+  };
+  const row = s.proposals.find((p) => p.id === "row")!;
+  editProposal(s, { id: "row", payload: row.payload, expectedPayload: row.payload });
+  assert.equal(row.status, "pending_approval");
+});
+
+test("pickup follows the day and month written in the message", () => {
+  const body = "pick it up this Saturday (28 Nov) at 4 pm";
+  assert.equal(writtenPickupDate(body, "2026-11-27T16:00:00+05:30"), "2026-11-28T16:00:00+05:30");
+  assert.equal(writtenPickupDate("Nov 28th please", "2026-11-28T16:00:00+05:30"), "2026-11-28T16:00:00+05:30");
+  assert.equal(writtenPickupDate("this Saturday", "2026-11-27T16:00:00+05:30"), "2026-11-27T16:00:00+05:30");
+});
+
+test("materials counted in pieces round up to whole pieces", () => {
+  assert.equal(materialNeed(5, 0.5, "pcs"), 3);
+  assert.equal(materialNeed(4, 2, "pcs"), 8);
+  assert.equal(materialNeed(300, 0.5, "ml"), 150);
 });

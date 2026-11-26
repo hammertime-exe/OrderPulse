@@ -78,7 +78,9 @@ export default function WorkspaceSetup({
       ...structuredClone(r),
     })),
   );
-  const [version, setVersion] = useState(s.version);
+  const [baseline, setBaseline] = useState(() =>
+    structuredClone({ business: s.business, stock: s.stock, recipes: s.recipes }),
+  );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
@@ -130,7 +132,11 @@ export default function WorkspaceSetup({
       setProducts(
         Object.entries(current.recipes).map(([name, r]) => ({ name, ...r })),
       );
-      setVersion(current.version);
+      setBaseline({
+        business: current.business,
+        stock: current.stock,
+        recipes: current.recipes,
+      });
       setDirty(false);
       setMessage("Loaded saved settings.");
       setFailed(false);
@@ -189,12 +195,12 @@ export default function WorkspaceSetup({
           business: { name, category },
           stock,
           recipes,
-          version,
+          expected: baseline,
         }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error);
-      setVersion(data.version);
+      setBaseline(data.settings);
       setDirty(false);
       setMessage(
         "Business settings saved. Your catalog is ready for order checks.",
