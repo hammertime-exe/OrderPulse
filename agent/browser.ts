@@ -1,4 +1,5 @@
 import { chromium, type Browser } from 'playwright-core';
+import { session } from '../server/google.ts';
 
 /** Visible, slowed-down browser locally (for the live demo); headless Chromium on Lambda. */
 export async function launchBrowser(): Promise<Browser> {
@@ -10,3 +11,10 @@ export async function launchBrowser(): Promise<Browser> {
 }
 
 export const appUrl = (path: string) => new URL(path, process.env.APP_URL ?? 'http://localhost:5173').toString();
+
+/** A page that may read the app's API when Google sign-in is on (the mock pages call /api/state). */
+export async function appPage(browser: Browser) {
+  const page = await browser.newPage();
+  if (process.env.GOOGLE_CLIENT_ID) await page.context().addCookies([{ name: 'op_session', value: session('agent', 10 * 60e3), url: appUrl('/') }]);
+  return page;
+}

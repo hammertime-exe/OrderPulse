@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
-import { handle, setRunAgent } from './api.ts';
+import { handle, setRunAgent, type Reply } from './api.ts';
 
 // API Lambda behind a Function URL: JSON API under /api/, the built dashboard and mock sites for everything else.
 const lambda = new LambdaClient({});
@@ -13,8 +13,8 @@ setRunAgent(async (run) => {
   }));
 });
 
-type UrlEvent = { rawPath: string; body?: string; isBase64Encoded?: boolean; requestContext: { http: { method: string } } };
-type UrlResult = { statusCode: number; headers: Record<string, string>; body: string; isBase64Encoded?: boolean };
+type UrlEvent = { rawPath: string; rawQueryString?: string; cookies?: string[]; headers?: Record<string, string>; body?: string; isBase64Encoded?: boolean; requestContext: { http: { method: string } } };
+type UrlResult = { statusCode: number; headers: Record<string, string>; body: string; isBase64Encoded?: boolean; cookies?: string[] };
 
 const WEB = new URL('./web/', import.meta.url);
 const TYPES: Record<string, string> = { html: 'text/html; charset=utf-8', js: 'text/javascript', css: 'text/css', svg: 'image/svg+xml', json: 'application/json', png: 'image/png', ico: 'image/x-icon' };
@@ -29,8 +29,17 @@ export async function api(event: UrlEvent): Promise<UrlResult> {
     } catch {
       return { statusCode: 400, headers: { 'content-type': 'application/json' }, body: '{"error":"invalid JSON"}' };
     }
-    const r = await handle(event.requestContext.http.method, path, body).catch((e: Error) => ({ status: 500, body: { error: e.message } }));
-    return { statusCode: r.status, headers: { 'content-type': 'application/json' }, body: JSON.stringify(r.body) };
+    const r: Reply = await handle(event.requestContext.http.method, path, body, {
+      cookie: event.cookies?.join('; '),
+      query: new URLSearchParams(event.rawQueryString ?? ''),
+      origin: `https://${event.headers?.host}`,
+    }).catch((e: Error) => ({ status: 500, body: { error: e.message } }));
+    return {
+      statusCode: r.status,
+      headers: { 'content-type': 'application/json', ...r.headers },
+      body: typeof r.body === 'string' ? r.body : JSON.stringify(r.body),
+      cookies: r.cookies,
+    };
   }
 
   const file = new URL(path === '/' ? 'index.html' : path.slice(1), WEB);

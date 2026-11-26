@@ -14,7 +14,8 @@ import {
 import { H, fmt, iso } from "../shared/time.ts";
 import { newId, now, updateState, readState } from "../server/store.ts";
 import { extractJson } from "./ai.ts";
-import { appUrl, launchBrowser } from "./browser.ts";
+import { appPage, appUrl, launchBrowser } from "./browser.ts";
+import { pushGoogle } from "../server/google.ts";
 import { step, capture } from "./steps.ts";
 
 const instructions = (
@@ -30,7 +31,7 @@ Use null for anything the message does not clearly state. Never guess.`;
 export async function run(runId: string, input?: string) {
   const browser = await launchBrowser();
   try {
-    const page = await browser.newPage();
+    const page = await appPage(browser);
 
     // CHECK: open the inbox and the newest unread message
     await page.goto(appUrl("/mock/inbox.html"));
@@ -55,6 +56,7 @@ export async function run(runId: string, input?: string) {
     const msg = {
       id: (await page.getAttribute("[data-testid=message]", "data-id"))!,
       from: await page.innerText("[data-testid=from]"),
+      subject: await page.innerText("#title"),
       receivedAt: (await page.getAttribute(
         "[data-testid=received]",
         "data-iso",
@@ -230,6 +232,7 @@ Use null for anything not stated. Never guess.`;
 
     // PREPARE: stage proposals, nothing is written yet
     const to = msg.from.match(/<([^>]+)>/)?.[1] ?? msg.from;
+    const subject = /^re:/i.test(msg.subject) ? msg.subject : `Re: ${msg.subject}`; // same subject keeps a Gmail reply in its thread
     const customer = req.customer || msg.from.replace(/<.*>/, "").trim();
     const first = customer.split(" ")[0];
     const missing = report.clashes.filter((c) => c.kind === "missing");
@@ -266,7 +269,7 @@ Use null for anything not stated. Never guess.`;
         {
           kind: "customer_reply",
           to,
-          subject: `Re: order details`,
+          subject,
           body: `Hi ${first},\n\nThanks for your order! Before I can confirm, could you tell me:\n${asks}\n\nThanks,\n${profile?.name ?? "Sweet Crumbs"}`,
         },
         missing.length
@@ -342,7 +345,7 @@ Use null for anything not stated. Never guess.`;
         {
           kind: "customer_reply",
           to,
-          subject: `Re: your ${req.product} order`,
+          subject,
           body: `Hi ${first},\n\nThank you for your order of a ${req.quantity} ${recipes[req.product!].unit} ${req.product}${req.customization ? ` (${req.customization})` : ""}. ${moved}${req.constraints.length ? `\n\nNoted: ${req.constraints.join("; ")}.` : ""}\n\nThanks,\n${profile?.name ?? "Sweet Crumbs"}`,
         },
         timeClash
@@ -388,6 +391,7 @@ Use null for anything not stated. Never guess.`;
       "APPROVE",
       `Staged ${proposals.length} changes; waiting for your approval`,
     );
+    await pushGoogle(); // reply drafts show up in the seller's Gmail
   } finally {
     await browser.close();
   }

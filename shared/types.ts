@@ -7,6 +7,8 @@ export type InboxMessage = {
   body: string;
   receivedAt: string;
   read: boolean;
+  threadId?: string; // Gmail messages only: reply in this thread
+  messageId?: string; // Gmail messages only: the Message-ID header, for In-Reply-To
 };
 
 /** What the AI pulls out of a message. null = not stated; the seller must fill it in. */
@@ -150,11 +152,27 @@ export type BusinessProfile = {
   category: "baker" | "tailor" | "crafter" | "caterer" | "other";
 };
 
+/** The connected seller Google account. Server-only fields are stripped from GET /api/state. */
+export type GoogleLink = {
+  email: string;
+  error?: string;
+  refreshToken: string;
+  ordersLabel: string;
+  processedLabel: string;
+  calendarId: string;
+  drafts: Record<string, { id: string; hash: string }>; // proposal id -> Gmail draft
+  sent: string[]; // proposal ids already sent through Gmail (at most once)
+  processed: string[]; // inbox ids already relabelled in Gmail
+};
+
 export type State = {
   business?: BusinessProfile;
+  google?: GoogleLink;
+  auth?: boolean; // GET /api/state only: Google sign-in is on
+  user?: string | null; // GET /api/state only: who is signed in
   version: number;
   inbox: InboxMessage[];
-  sent: SentMessage[]; // demo "sent" folder; nothing leaves the app
+  sent: SentMessage[]; // app outbox; replies to Gmail-sourced messages are also sent through Gmail
   orders: Order[];
   stock: StockItem[];
   recipes: Record<string, Recipe>;

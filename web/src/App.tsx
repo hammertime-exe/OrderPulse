@@ -86,6 +86,7 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   });
   const [error, setError] = useState("");
+  const [signIn, setSignIn] = useState(false);
   const [actionError, setActionError] = useState("");
   const [starting, setStarting] = useState(false);
 
@@ -94,6 +95,7 @@ export default function App() {
     const load = () =>
       fetch("/api/state")
         .then((r) => {
+          if (alive) setSignIn(r.status === 401);
           if (!r.ok) throw new Error("API is unavailable");
           return r.json();
         })
@@ -109,6 +111,17 @@ export default function App() {
     };
   }, []);
 
+  if (signIn)
+    return (
+      <main className="loading-screen">
+        <div className="brand-mark">O</div>
+        <h1>OrderPulse</h1>
+        <p>Sign in with an approved Google account to open this workspace.</p>
+        <a className="primary-button" href="/api/auth/login">
+          Sign in with Google
+        </a>
+      </main>
+    );
   if (!s)
     return (
       <main className="loading-screen">
