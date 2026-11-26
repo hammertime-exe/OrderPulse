@@ -12,7 +12,7 @@ The seeded demo uses a bakery catalog. Business setup supports other seller type
 
 The responsive frontend and core local workflows are implemented. Current verification includes **50 passing automated tests**, TypeScript checking and a production frontend build, plus desktop and mobile browser checks.
 
-Out of the box this is a local demo with controlled inbox, tracker and calendar pages. With Google configured, the app requires a Google sign-in, reads orders from the seller's Gmail, sends approved replies through Gmail and mirrors slots to Google Calendar (tested locally with a real account). AWS deployment still needs verification.
+Out of the box this is a local demo with controlled inbox, tracker and calendar pages. With Google configured, the app requires a Google sign-in, reads orders from the seller's Gmail, sends approved replies through Gmail and mirrors slots to Google Calendar. This was tested locally end to end with a real account: Gmail order in, threaded reply sent, email relabelled, slots added to Google Calendar. Clash detection against real Google Calendar events is covered by unit tests only. AWS deployment still needs verification.
 
 ## Features
 
@@ -149,7 +149,7 @@ Without these settings the app runs as before, with no sign-in and only the demo
 2. Add the scopes `openid`, `.../auth/userinfo.email`, `.../auth/gmail.modify`, `.../auth/calendar.app.created` and `.../auth/calendar.events.readonly`.
 3. Create a **Web application** OAuth client with the redirect URI `http://localhost:5173/api/gmail/callback`.
 4. In `.env`, set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `OWNER_EMAILS` (a comma-separated list of the Google accounts allowed in). Restart the API.
-5. In the seller's Gmail, create the labels `Orders` and `Orders/Processed`, plus a filter that applies `Orders` to order emails.
+5. In the seller's Gmail, create the labels `Orders` and `Orders/Processed`, plus a filter that applies `Orders` to order emails. Match on words customers actually use (for example `order OR cake OR pickup`), not only the subject, and add `-from:me` so the app's own sent replies are not labelled. The app skips them either way.
 6. Sign in, open **Business setup → Google account → Connect Google account**, and sign in with the seller's account, allowing every permission.
 
 How it behaves:
@@ -211,6 +211,8 @@ This deletes local `data/` state and restores the seeded demo on the next load. 
 ## What remains
 
 ### Complete a live demo
+
+- Test the Google Calendar clash check against a real overlapping event, and the Google flow on the deployed URL.
 
 - Configure and test a real AI provider, including missing details, failed/rate-limited calls and a non-bakery product catalog.
 - Verify official-page extraction, supporting quotes and stated deadlines against live portals; exercise redirects, unavailable pages, changed layouts and CAPTCHA cases.
