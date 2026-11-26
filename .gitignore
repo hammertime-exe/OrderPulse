@@ -4,3 +4,4 @@ data/
 .env
 .aws-sam/
 *.pptx
+.claude/

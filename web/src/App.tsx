@@ -57,21 +57,34 @@ const DESCRIPTIONS: Record<string, string> = {
   "Business setup": "A workspace that fits what you create.",
 };
 type Tab = (typeof TABS)[number];
+const hashOf = (t: Tab) => `#${encodeURIComponent(t)}`;
+const tabFromHash = (): Tab =>
+  TABS.find((t) => hashOf(t) === location.hash) ?? "Overview";
 
 export default function App() {
   const [s, setS] = useState<State | null>(null);
-  const [tab, setTabState] = useState<Tab>("Overview");
+  const [tab, setTabState] = useState<Tab>(tabFromHash);
   const [setupDirty, setSetupDirty] = useState(false);
-  const setTab = (next: Tab) => {
-    if (next === tab) return;
+  const setTab = (next: Tab, push = true) => {
+    if (next === tab) return true;
     if (
       setupDirty &&
       !confirm("Discard unsaved business settings and leave this screen?")
     )
-      return;
+      return false;
     setSetupDirty(false);
     setTabState(next);
+    if (push) history.pushState(null, "", hashOf(next));
+    return true;
   };
+  // Browser back/forward: follow the URL, or put it back if the user keeps unsaved settings.
+  useEffect(() => {
+    const onPop = () => {
+      if (!setTab(tabFromHash(), false)) history.pushState(null, "", hashOf(tab));
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  });
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
   const [starting, setStarting] = useState(false);
