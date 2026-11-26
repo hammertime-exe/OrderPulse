@@ -10,9 +10,9 @@ The seeded demo uses a bakery catalog. Business setup supports other seller type
 
 ## Current status
 
-The responsive frontend and core local workflows are implemented. Current verification includes **40 passing automated tests**, TypeScript checking and a production frontend build, plus desktop and mobile browser checks.
+The responsive frontend and core local workflows are implemented. Current verification includes **50 passing automated tests**, TypeScript checking and a production frontend build, plus desktop and mobile browser checks.
 
-This is a local demo with controlled inbox, tracker and calendar pages. Live AI extraction, real seller-service integrations and AWS deployment still need verification. Customer replies currently go to an internal demo outbox.
+Out of the box this is a local demo with controlled inbox, tracker and calendar pages. With Google configured, the app requires a Google sign-in, reads orders from the seller's Gmail, sends approved replies through Gmail and mirrors slots to Google Calendar (tested locally with a real account). AWS deployment still needs verification.
 
 ## Features
 
@@ -139,7 +139,26 @@ The browser agent's controlled pages are:
 - `/mock/tracker.html`
 - `/mock/calendar.html`
 
-These pages reflect approved app state; they are not connected Gmail, WhatsApp, Google Sheets or Google Calendar accounts.
+These pages reflect approved app state. With Google connected (below), the inbox page also lists the seller's Gmail orders and the calendar page includes their Google Calendar events.
+
+### 4. Optional: Google sign-in, Gmail and Calendar
+
+Without these settings the app runs as before, with no sign-in and only the demo inbox.
+
+1. In Google Cloud, create a project, enable the **Gmail API** and **Google Calendar API**, and configure the OAuth consent screen as **External**, status **Testing**. Add every person who will sign in under **Test users**.
+2. Add the scopes `openid`, `.../auth/userinfo.email`, `.../auth/gmail.modify`, `.../auth/calendar.app.created` and `.../auth/calendar.events.readonly`.
+3. Create a **Web application** OAuth client with the redirect URI `http://localhost:5173/api/gmail/callback`.
+4. In `.env`, set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `OWNER_EMAILS` (a comma-separated list of the Google accounts allowed in). Restart the API.
+5. In the seller's Gmail, create the labels `Orders` and `Orders/Processed`, plus a filter that applies `Orders` to order emails.
+6. Sign in, open **Business setup → Google account → Connect Google account**, and sign in with the seller's account, allowing every permission.
+
+How it behaves:
+
+- **Check new orders** first pulls new `Orders` mail (skipping mail sent from the seller's own address) and the next 60 days of timed events from the seller's primary calendar, which count as clashes.
+- Proposed replies appear as Gmail drafts in the customer's thread. Edits made in the app update the draft; rejecting a reply deletes it.
+- Approving sends the reply in the thread at most once, marks the email read, moves it to `Orders/Processed`, and mirrors upcoming prep, pickup and reminder slots into an **OrderPulse** calendar.
+- Demo and manual orders never send email. Google failures show in Business setup and History; the approval in the app is not rolled back.
+- The refresh token stays on the server and is never sent to the browser. While the OAuth app is in Testing, Google expires the connection after 7 days, so reconnect when that happens.
 
 ## Try the demo
 
@@ -163,7 +182,7 @@ These pages reflect approved app state; they are not connected Gmail, WhatsApp, 
 - Confirmation replies cannot execute before their pending order and required time slots. Rejected revisions preserve the existing order.
 - Restocking is available while proposals are pending; stock reductions wait until pending approvals are resolved. Adjustments require a reason.
 - Delivery deducts material consumption once. A restock reminder does not establish that supplies were purchased; resolve physical shortages before delivery.
-- Approved customer replies stay in the demo outbox. Saved reminders are calendar events; background email, push and SMS delivery are not implemented.
+- Approved replies to demo messages stay in the app outbox; replies to Gmail orders are also sent through Gmail when Google is connected. Saved reminders are calendar events; push and SMS delivery are not implemented.
 
 ## Verification
 
@@ -200,9 +219,9 @@ This deletes local `data/` state and restores the seeded demo on the next load. 
 
 ### Before real customer use
 
-- Add authentication, seller-specific storage and server-side authorisation.
+- Google sign-in limited to `OWNER_EMAILS` is in place; add seller-specific storage and per-user roles.
 - Replace the single shared JSON/DynamoDB state document with storage suitable for multiple sellers; add backup, retention, monitoring and recovery.
-- Implement authorised seller-service connectors, actual message sending, permission/reconnection handling and duplicate-action protection.
+- Gmail and Google Calendar are connected; add a disconnect action, background polling, OAuth app verification (to remove the 7-day Testing expiry) and connectors for other channels such as WhatsApp.
 - Add a background scheduler and notification channel for reminders while the app is closed.
 - Broaden real seller, keyboard/screen-reader, cross-browser, concurrency and failure-recovery checks.
 
@@ -219,7 +238,7 @@ npm run build:lambda
 npm run deploy
 ```
 
-The template defines two Lambda functions and one DynamoDB table. Its function URL uses `AuthType: NONE`, so the supplied configuration is a public demo without login. Add authentication before using real seller data. Review current AWS costs and account limits; free-tier coverage has not been validated.
+The template defines two Lambda functions and one DynamoDB table. Its function URL uses `AuthType: NONE`; pass the `GoogleClientId`, `GoogleClientSecret` and `OwnerEmails` parameters to require a Google sign-in, and add `https://<AppUrl>/api/gmail/callback` as a redirect URI in Google Cloud. Review current AWS costs and account limits; free-tier coverage has not been validated.
 
 ## Tech stack and project layout
 

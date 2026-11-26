@@ -246,6 +246,49 @@ export default function WorkspaceSetup({
           {message}
         </p>
       )}
+      {s.auth && (
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h2>Google account</h2>
+              <p>
+                Order checks read Gmail mail labelled "Orders". Approved replies
+                are sent from Gmail and slots go to the OrderPulse calendar.
+              </p>
+            </div>
+          </div>
+          {s.google?.error && (
+            <p role="alert" className="error-banner">
+              {s.google.error}
+            </p>
+          )}
+          <p>
+            {s.google ? (
+              <>
+                Connected: <b>{s.google.email}</b>
+              </>
+            ) : (
+              "Not connected. Order checks use only the app inbox."
+            )}
+          </p>
+          <div className="template-action">
+            <p>Signed in as {s.user}</p>
+            <a className="secondary-button" href="/api/auth/connect">
+              {s.google ? "Reconnect" : "Connect"} Google account
+            </a>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST" });
+                location.reload();
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+        </section>
+      )}
       <fieldset disabled={busy || locked}>
         <section className="panel">
           <div className="panel-heading">

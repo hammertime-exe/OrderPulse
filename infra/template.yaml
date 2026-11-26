@@ -11,6 +11,16 @@ Parameters:
     Type: String
     NoEcho: true
     Default: ''
+  GoogleClientId:
+    Type: String
+    Default: ''
+  GoogleClientSecret:
+    Type: String
+    NoEcho: true
+    Default: ''
+  OwnerEmails:
+    Type: String
+    Default: ''
 
 Globals:
   Function:
@@ -19,6 +29,9 @@ Globals:
     Environment:
       Variables:
         STATE_TABLE: !Ref StateTable
+        GOOGLE_CLIENT_ID: !Ref GoogleClientId # empty = no sign-in, no Google sync
+        GOOGLE_CLIENT_SECRET: !Ref GoogleClientSecret
+        OWNER_EMAILS: !Ref OwnerEmails
 
 Resources:
   # Provisioned (not on-demand) so it stays inside the always-free 25 RCU / 25 WCU.
@@ -36,7 +49,7 @@ Resources:
       CodeUri: ../dist/lambda/api
       Handler: index.api
       MemorySize: 256
-      Timeout: 15
+      Timeout: 30 # Gmail and Calendar sync run inside order checks and approvals
       Environment:
         Variables:
           AGENT_FUNCTION: !Sub '${AWS::StackName}-agent'
@@ -44,7 +57,7 @@ Resources:
         - DynamoDBCrudPolicy: { TableName: !Ref StateTable }
         - LambdaInvokePolicy: { FunctionName: !Sub '${AWS::StackName}-agent' }
       FunctionUrlConfig:
-        AuthType: NONE # shortcut: public demo URL, anyone with the link can approve; add auth before real seller data
+        AuthType: NONE # public URL; with GoogleClientId set, /api needs a Google sign-in from OwnerEmails
 
   AgentFunction:
     Type: AWS::Serverless::Function

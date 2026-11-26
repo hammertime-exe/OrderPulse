@@ -10,8 +10,20 @@ import type { Run, State } from "../shared/types.ts";
 import { saveWorkspace, editProposal, settingsOf } from "./workspace.ts";
 import { approve, reject } from "./approval.ts";
 import { newId, now, readState, updateState } from "./store.ts";
+import {
+  authCallback,
+  authOn,
+  authStart,
+  logout,
+  publicState,
+  pullGoogle,
+  pushGoogle,
+  sessionEmail,
+  type Reply,
+  type Req,
+} from "./google.ts";
 
-export type Reply = { status: number; body: unknown };
+export type { Reply, Req };
 
 const isIds = (v: unknown): v is string[] =>
   Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string");
@@ -94,14 +106,30 @@ export async function handle(
   method: string,
   path: string,
   body: any,
+  req: Req = {},
 ): Promise<Reply> {
   const route = `${method} ${path}`;
+  if (route === "GET /api/auth/login") return authStart("login", req);
+  if (route === "GET /api/auth/connect") return authStart("connect", req);
+  if (route === "GET /api/gmail/callback") return authCallback(req);
+  if (route === "POST /api/auth/logout") return logout(req);
+  const user = authOn() ? sessionEmail(req.cookie) : null;
+  if (authOn() && !user)
+    return { status: 401, body: { error: "Sign in with Google to use OrderPulse." } };
+  const reply = await route_(route, path, body);
+  // Approvals, rejections and reply edits change what Gmail and the OrderPulse calendar should show.
+  if (reply.status < 300 && /^POST \/api\/proposals\//.test(route)) await pushGoogle();
+  return route === "GET /api/state" ? { ...reply, body: publicState(reply.body as State, user) } : reply;
+}
+
+async function route_(route: string, path: string, body: any): Promise<Reply> {
   switch (route) {
     case "GET /api/state":
       return { status: 200, body: expire(await readState()) };
     case "POST /api/runs":
       try {
-        if (body?.kind === "order")
+        if (body?.kind === "order") {
+          await pullGoogle(); // new Gmail orders and Google Calendar events, before the agent looks
           return {
             status: 202,
             body: {
@@ -111,6 +139,7 @@ export async function handle(
               ),
             },
           };
+        }
         if (
           body?.kind === "aidscout" &&
           typeof body.input === "string" &&
