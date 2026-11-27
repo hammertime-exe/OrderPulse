@@ -1,5 +1,18 @@
 # OrderPulse AI Agent Handoff
 
+## Current update on 27 November 2026
+
+Read this update before the historical snapshot below. Syncing before the handoff push brought in newer work, including `e3686c8` (Google sign-in, Gmail order sync and Google Calendar) and `7f9dc6d` (live Gmail test notes). The original DOCX and the 26 November sections below describe the earlier `c5ef2d8` baseline.
+
+- Google integration is now implemented in `server/google.ts`, with supporting API, browser, settings and infrastructure changes. When configured, Google sign-in is restricted to `OWNER_EMAILS`; without configuration the local demo runs without sign-in.
+- Gmail order import, threaded drafts, approved replies and relabelling are implemented. Upcoming slots are mirrored to an OrderPulse Google Calendar. Existing timed primary-calendar events are imported for clash checking.
+- The updated README records a real-account local end-to-end test of Gmail intake, reply sending, relabelling and calendar slot creation. This handoff task did not independently repeat that live test. Real-calendar overlap behaviour is documented as unit-tested only.
+- Google sync failures appear in settings/history and do not roll back the local approval. Do not assume an external write succeeded solely because local approval succeeded. Demo/manual orders do not send Gmail replies.
+- `npm test` was rerun after syncing: all **50 tests passed**. Earlier references to 40 tests are historical. Typecheck/build results below were obtained before the newer changes were pulled and were not rerun after that sync in this push task.
+- WhatsApp, multi-seller isolation, background reminders, wider live-provider/portal validation and verified cloud deployment remain unfinished. Read the current README for Google setup and its documented limitations; do not rely on the historical statements that Gmail/Calendar or sign-in are absent.
+
+## Historical snapshot from 26 November 2026
+
 Project snapshot and continuation guide as of 26 November 2026
 
 This handoff gives another coding agent enough context to continue OrderPulse without the original chat. Read the repository alongside this document and verify any state that may have changed. The local frontend and core approval workflows are implemented. Live AI extraction, external integrations and cloud deployment remain the main unfinished work.
